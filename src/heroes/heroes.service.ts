@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { Model } from "mongoose";
 import { Hero, HeroDocument } from "./schemas/hero.schema";
 import { InjectModel } from "@nestjs/mongoose";
@@ -20,6 +20,20 @@ export class HeroesService {
 
   async addHero(hero: HeroDetailsDTO): Promise<HeroDetailsDTO> {
     return await this.heroModel.create(hero);
+  }
+
+  async editHero(changedHero: {
+    id: string;
+    hero: HeroDetailsDTO;
+  }): Promise<HeroDetailsDTO> {
+    const updatedHero = await this.heroModel.findByIdAndUpdate(
+      changedHero.id,
+      changedHero.hero,
+    );
+
+    if (!updatedHero) throw new NotFoundException("Hero not found");
+
+    return updatedHero;
   }
 
   async deleteHero(id: string): Promise<HeroCardDTO[]> {
