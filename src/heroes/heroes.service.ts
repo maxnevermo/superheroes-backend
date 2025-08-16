@@ -21,4 +21,11 @@ export class HeroesService {
   async addHero(hero: HeroDetailsDTO): Promise<HeroDetailsDTO> {
     return await this.heroModel.create(hero);
   }
+
+  async deleteHero(id: string): Promise<HeroCardDTO[]> {
+    await this.heroModel.deleteOne({ _id: id });
+    const modifiedHeroes = await this.heroModel.find();
+
+    return modifiedHeroes.map(toHeroCardDTO);
+  }
 }
