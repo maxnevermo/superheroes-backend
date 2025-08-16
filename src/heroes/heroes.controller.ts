@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
 import { HeroesService } from "./heroes.service";
 import { HeroCardDTO } from "./dto/hero-card.dto";
 import { HeroDetailsDTO } from "./dto/hero-details.dto";
@@ -15,5 +15,10 @@ export class HeroesController {
   @Post()
   async addHero(@Body() hero: HeroDetailsDTO): Promise<HeroDetailsDTO> {
     return this.heroesService.addHero(hero);
+  }
+
+  @Delete(":id")
+  async deleteHero(@Param("id") id: string): Promise<HeroCardDTO[]> {
+    return this.heroesService.deleteHero(id);
   }
 }
