@@ -3,7 +3,7 @@ import { Model } from "mongoose";
 import { Hero, HeroDocument } from "./schemas/hero.schema";
 import { InjectModel } from "@nestjs/mongoose";
 import { HeroCardDTO, toHeroCardDTO } from "./dto/hero-card.dto";
-import { HeroDetailsDTO } from "./dto/hero-details.dto";
+import { HeroDetailsDTO, toHeroDetailsDTO } from "./dto/hero-details.dto";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
 
 @Injectable()
@@ -23,7 +23,7 @@ export class HeroesService {
   async addHero(
     hero: Omit<HeroDetailsDTO, "images">,
     photos: Express.Multer.File[],
-  ): Promise<HeroDetailsDTO> {
+  ): Promise<HeroCardDTO> {
     const uploaded = photos?.length
       ? await this.cloudinary.uploadMany(photos)
       : [];
@@ -33,7 +33,7 @@ export class HeroesService {
     }));
     const created = await this.heroModel.create({ ...hero, images });
 
-    return created.toObject();
+    return toHeroCardDTO(created);
   }
 
   async editHero(
@@ -74,10 +74,9 @@ export class HeroesService {
       throw new NotFoundException("Hero not found after update");
     }
 
-    if (toDelete.length)
-      this.cloudinary.destroyMany(toDelete).catch(() => void 0);
+    if (toDelete.length) await this.cloudinary.destroyMany(toDelete);
 
-    return updated.toObject();
+    return toHeroDetailsDTO(updated);
   }
 
   async deleteHero(id: string): Promise<HeroCardDTO[]> {
@@ -86,12 +85,9 @@ export class HeroesService {
     if (!hero) throw new NotFoundException("Hero not found");
 
     const publicIds = (hero.images ?? []).map((i) => i.publicId);
-
     await this.heroModel.deleteOne({ _id: id });
 
-    if (publicIds.length) {
-      this.cloudinary.destroyMany(publicIds).catch(() => void 0);
-    }
+    if (publicIds.length) await this.cloudinary.destroyMany(publicIds);
 
     const modifiedHeroes = await this.heroModel.find();
 

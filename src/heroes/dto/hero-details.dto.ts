@@ -7,6 +7,7 @@ export class HeroImageDTO {
 }
 
 export class HeroDetailsDTO {
+  id: string;
   nickname: string;
   realName: string;
   originDescription: string;
@@ -17,6 +18,7 @@ export class HeroDetailsDTO {
 
 export function toHeroDetailsDTO(hero: HeroDocument): HeroDetailsDTO {
   return {
+    id: hero._id.toString(),
     nickname: hero.nickname,
     realName: hero.realName,
     originDescription: hero.originDescription,

@@ -50,7 +50,7 @@ export class HeroesController {
   addHero(
     @Body("payload") payload: string,
     @UploadedFiles() photos: Express.Multer.File[],
-  ): Promise<HeroDetailsDTO> {
+  ): Promise<HeroCardDTO> {
     const data = parseJson<Omit<HeroDetailsDTO, "images">>(payload);
 
     return this.heroesService.addHero(data, photos);
