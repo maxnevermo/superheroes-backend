@@ -7,7 +7,7 @@ export class HeroCardDTO {
 
 export function toHeroCardDTO(hero: HeroDocument): HeroCardDTO {
   return {
-    mainImage: hero.images[0],
+    mainImage: hero.images?.[0]?.url ?? "",
     nickname: hero.nickname,
   };
 }

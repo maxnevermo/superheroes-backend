@@ -4,12 +4,14 @@ import { Hero, HeroDocument } from "./schemas/hero.schema";
 import { InjectModel } from "@nestjs/mongoose";
 import { HeroCardDTO, toHeroCardDTO } from "./dto/hero-card.dto";
 import { HeroDetailsDTO } from "./dto/hero-details.dto";
+import { CloudinaryService } from "src/cloudinary/cloudinary.service";
 
 @Injectable()
 export class HeroesService {
   constructor(
     @InjectModel(Hero.name)
     private readonly heroModel: Model<HeroDocument>,
+    private readonly cloudinary: CloudinaryService,
   ) {}
 
   async getAllHeroes(): Promise<HeroCardDTO[]> {
@@ -18,26 +20,79 @@ export class HeroesService {
     return heroes.map(toHeroCardDTO);
   }
 
-  async addHero(hero: HeroDetailsDTO): Promise<HeroDetailsDTO> {
-    return await this.heroModel.create(hero);
+  async addHero(
+    hero: Omit<HeroDetailsDTO, "images">,
+    photos: Express.Multer.File[],
+  ): Promise<HeroDetailsDTO> {
+    const uploaded = photos?.length
+      ? await this.cloudinary.uploadMany(photos)
+      : [];
+    const images = uploaded.map((u) => ({
+      url: u.secure_url,
+      publicId: u.public_id,
+    }));
+    const created = await this.heroModel.create({ ...hero, images });
+
+    return created.toObject();
   }
 
-  async editHero(changedHero: {
-    id: string;
-    hero: HeroDetailsDTO;
-  }): Promise<HeroDetailsDTO> {
-    const updatedHero = await this.heroModel.findByIdAndUpdate(
-      changedHero.id,
-      changedHero.hero,
+  async editHero(
+    id: string,
+    hero: Omit<HeroDetailsDTO, "images">,
+    newPhotos: Express.Multer.File[],
+    keepPublicIds: string[],
+  ): Promise<HeroDetailsDTO> {
+    const existing = await this.heroModel.findById(id);
+
+    if (!existing) throw new NotFoundException("Hero not found");
+
+    const current = existing.images ?? [];
+
+    const toDelete = current
+      .filter((img) => !keepPublicIds.includes(img.publicId))
+      .map((img) => img.publicId);
+    const uploaded = newPhotos?.length
+      ? await this.cloudinary.uploadMany(newPhotos)
+      : [];
+    const newImages = uploaded.map((u) => ({
+      url: u.secure_url,
+      publicId: u.public_id,
+    }));
+    const keptImages = current.filter((img) =>
+      keepPublicIds.includes(img.publicId),
+    );
+    const nextImages = [...keptImages, ...newImages];
+
+    const updated = await this.heroModel.findByIdAndUpdate(
+      id,
+      { ...hero, images: nextImages },
+      { new: true },
     );
 
-    if (!updatedHero) throw new NotFoundException("Hero not found");
+    if (!updated) {
+      await this.cloudinary.destroyMany(newImages.map((i) => i.publicId));
+      throw new NotFoundException("Hero not found after update");
+    }
 
-    return updatedHero;
+    if (toDelete.length)
+      this.cloudinary.destroyMany(toDelete).catch(() => void 0);
+
+    return updated.toObject();
   }
 
   async deleteHero(id: string): Promise<HeroCardDTO[]> {
+    const hero = await this.heroModel.findById(id);
+
+    if (!hero) throw new NotFoundException("Hero not found");
+
+    const publicIds = (hero.images ?? []).map((i) => i.publicId);
+
     await this.heroModel.deleteOne({ _id: id });
+
+    if (publicIds.length) {
+      this.cloudinary.destroyMany(publicIds).catch(() => void 0);
+    }
+
     const modifiedHeroes = await this.heroModel.find();
 
     return modifiedHeroes.map(toHeroCardDTO);
