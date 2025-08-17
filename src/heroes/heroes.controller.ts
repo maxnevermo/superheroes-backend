@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,34 +7,71 @@ import {
   Param,
   Post,
   Put,
+  UploadedFiles,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
+import * as multer from "multer";
 import { HeroesService } from "./heroes.service";
 import { HeroCardDTO } from "./dto/hero-card.dto";
 import { HeroDetailsDTO } from "./dto/hero-details.dto";
 
+const imageMemoryMulter: multer.Options = {
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const isImage = /^image\//.test(file.mimetype);
+    if (!isImage) {
+      new multer.MulterError("LIMIT_UNEXPECTED_FILE");
+    }
+    cb(null, true);
+  },
+};
+
+function parseJson<T>(raw: string, message = "Invalid JSON"): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new BadRequestException(message);
+  }
+}
+
 @Controller("heroes")
 export class HeroesController {
-  constructor(private heroesService: HeroesService) {}
+  constructor(private readonly heroesService: HeroesService) {}
 
   @Get()
-  async getHeroes(): Promise<HeroCardDTO[]> {
+  getHeroes(): Promise<HeroCardDTO[]> {
     return this.heroesService.getAllHeroes();
   }
 
   @Post()
-  async addHero(@Body() hero: HeroDetailsDTO): Promise<HeroDetailsDTO> {
-    return this.heroesService.addHero(hero);
+  @UseInterceptors(FilesInterceptor("photos", 5, imageMemoryMulter))
+  addHero(
+    @Body("payload") payload: string,
+    @UploadedFiles() photos: Express.Multer.File[],
+  ): Promise<HeroCardDTO> {
+    const data = parseJson<Omit<HeroDetailsDTO, "images">>(payload);
+
+    return this.heroesService.addHero(data, photos);
   }
 
-  @Put()
-  async editHero(
-    @Body() changedHero: { id: string; hero: HeroDetailsDTO },
+  @Put(":id")
+  @UseInterceptors(FilesInterceptor("photos", 5, imageMemoryMulter))
+  editHero(
+    @Param("id") id: string,
+    @Body("payload") payload: string,
+    @Body("keepPublicIds") keepPublicIds?: string,
+    @UploadedFiles() photos?: Express.Multer.File[],
   ): Promise<HeroDetailsDTO> {
-    return this.heroesService.editHero(changedHero);
+    const data = parseJson<Omit<HeroDetailsDTO, "images">>(payload);
+    const keep = keepPublicIds ? parseJson<string[]>(keepPublicIds) : [];
+
+    return this.heroesService.editHero(id, data, photos ?? [], keep);
   }
 
   @Delete(":id")
-  async deleteHero(@Param("id") id: string): Promise<HeroCardDTO[]> {
+  deleteHero(@Param("id") id: string): Promise<HeroCardDTO[]> {
     return this.heroesService.deleteHero(id);
   }
 }
