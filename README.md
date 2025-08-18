@@ -34,4 +34,6 @@ CLOUDINARY_FOLDER — optional folder name for uploads (e.g., superheroes)
 ```
 
 3) Run in development
+```
 npm run start:dev
+```
