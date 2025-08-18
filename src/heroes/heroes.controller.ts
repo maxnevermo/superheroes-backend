@@ -76,4 +76,9 @@ export class HeroesController {
   deleteHero(@Param("id") id: string): Promise<HeroCardDTO[]> {
     return this.heroesService.deleteHero(id);
   }
+
+  @Get(":id")
+  getHeroById(@Param("id") id: string): Promise<HeroDetailsDTO> {
+    return this.heroesService.getHeroById(id);
+  }
 }
