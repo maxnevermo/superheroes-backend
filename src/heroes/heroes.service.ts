@@ -5,6 +5,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { HeroCardDTO, toHeroCardDTO } from "./dto/hero-card.dto";
 import { HeroDetailsDTO, toHeroDetailsDTO } from "./dto/hero-details.dto";
 import { CloudinaryService } from "src/cloudinary/cloudinary.service";
+import { Paginated } from "./dto/utils/pagination.dto";
 
 @Injectable()
 export class HeroesService {
@@ -14,10 +15,20 @@ export class HeroesService {
     private readonly cloudinary: CloudinaryService,
   ) {}
 
-  async getAllHeroes(): Promise<HeroCardDTO[]> {
-    const heroes = await this.heroModel.find();
+  async getAllHeroes(page = 1): Promise<Paginated> {
+    const pageSize = 5;
 
-    return heroes.map(toHeroCardDTO);
+    const totalItems = await this.heroModel.countDocuments();
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const skip = (page - 1) * pageSize;
+
+    const heroes = await this.heroModel.find().skip(skip).limit(pageSize);
+
+    return {
+      items: heroes.map(toHeroCardDTO),
+      page,
+      totalPages,
+    };
   }
 
   async addHero(
