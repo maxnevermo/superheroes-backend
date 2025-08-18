@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from "@nestjs/common";
@@ -15,6 +16,7 @@ import * as multer from "multer";
 import { HeroesService } from "./heroes.service";
 import { HeroCardDTO } from "./dto/hero-card.dto";
 import { HeroDetailsDTO } from "./dto/hero-details.dto";
+import { Paginated } from "./dto/utils/pagination.dto";
 
 const imageMemoryMulter: multer.Options = {
   storage: multer.memoryStorage(),
@@ -41,8 +43,8 @@ export class HeroesController {
   constructor(private readonly heroesService: HeroesService) {}
 
   @Get()
-  getHeroes(): Promise<HeroCardDTO[]> {
-    return this.heroesService.getAllHeroes();
+  getHeroes(@Query("page") page?: string): Promise<Paginated> {
+    return this.heroesService.getAllHeroes(page ? Number(page) : 1);
   }
 
   @Post()
