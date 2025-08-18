@@ -104,4 +104,12 @@ export class HeroesService {
 
     return modifiedHeroes.map(toHeroCardDTO);
   }
+
+  async getHeroById(id: string): Promise<HeroDetailsDTO> {
+    const hero = await this.heroModel.findById(id);
+
+    if (!hero) throw new NotFoundException("Hero not found");
+
+    return toHeroDetailsDTO(hero);
+  }
 }
